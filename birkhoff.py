@@ -117,6 +117,12 @@ def birkhoff_decomposition(matrix, tol=1e-9, max_iterations=None):
         # We maximize the matching weight by minimizing the negative
         row_ind, col_ind = linear_sum_assignment(-support)
 
+        # Verify we found a valid matching in the support
+        # (all matched positions should have positive support)
+        if not np.all(support[row_ind, col_ind] > 0):
+            # This shouldn't happen for a valid doubly stochastic matrix
+            break
+
         # Create the permutation matrix from the matching
         permutation = np.zeros((n, n), dtype=float)
         permutation[row_ind, col_ind] = 1.0
@@ -201,8 +207,8 @@ def verify_decomposition(original, decomposition, tol=1e-9):
     reconstructed = np.zeros_like(original)
 
     for coeff, perm in decomposition:
-        # Check coefficient is positive
-        if coeff < -tol:
+        # Check coefficient is positive (not zero or negative)
+        if coeff <= tol:
             return False
 
         total_coeff += coeff
@@ -217,7 +223,8 @@ def verify_decomposition(original, decomposition, tol=1e-9):
             return False
         if not np.allclose(np.sum(perm, axis=1), 1.0, atol=tol):
             return False
-        if not np.all((perm >= -tol) & (perm <= 1 + tol)):
+        # Check entries are binary (0 or 1)
+        if not np.all(np.isclose(perm, 0, atol=tol) | np.isclose(perm, 1, atol=tol)):
             return False
 
         reconstructed += coeff * perm
